@@ -1,5 +1,3 @@
-
-// Section 3: Define the interface
 interface router_interface;
     logic reset;
     logic [7:0] dut_inp;
@@ -8,7 +6,20 @@ interface router_interface;
     logic outp_valid;
     logic busy;
     logic [3:0] error;
+
+    // Define modport for the testbench (TB)
+    modport tb_modport (
+        output reset, dut_inp, inp_valid,  // Signals driven by TB
+        input outp_valid, dut_outp, busy, error  // Signals sampled by TB
+    );
+
+    // Define modport for the DUT
+    modport dut_modport (
+        input reset, dut_inp, inp_valid,  // Signals driven by TB
+        output outp_valid, dut_outp, busy, error  // Signals sampled by TB
+    );
 endinterface
+
 
 module top;
     // Section 1: Declare the clock
@@ -36,13 +47,7 @@ module top;
     // Section 6: Instantiate the testbench and connect it to the interface
     testbench tb_inst (
         .clk(clk),
-        .reset(intf.reset),
-        .dut_inp(intf.dut_inp),
-        .inp_valid(intf.inp_valid),
-        .dut_outp(intf.dut_outp),
-        .outp_valid(intf.outp_valid),
-        .busy(intf.busy),
-        .error(intf.error)
+        .router_if(intf.tb_modport)  // Connect the modport for the testbench
     );
 
     // Section 7: Dumping Waveform

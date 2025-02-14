@@ -36,13 +36,7 @@ module top;
     // Section 6: Instantiate the testbench and connect it to the interface
     testbench tb_inst (
         .clk(clk),
-        .reset(intf.reset),
-        .dut_inp(intf.dut_inp),
-        .inp_valid(intf.inp_valid),
-        .dut_outp(intf.dut_outp),
-        .outp_valid(intf.outp_valid),
-        .busy(intf.busy),
-        .error(intf.error)
+        .router_if(intf)
     );
 
     // Section 7: Dumping Waveform

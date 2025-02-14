@@ -1,7 +1,4 @@
-// Section 1: Declaration of input/output ports
-program testbench(input reg clk, output reg reset, output reg [7:0] dut_inp, output reg inp_valid, 
-                  input [7:0] dut_outp, input outp_valid, input busy, input [3:0] error);
-
+program testbench(input reg clk, router_interface router_if);
     // Section 2: TB Variables
     typedef struct {
         logic [7:0] sa;
@@ -19,9 +16,9 @@ program testbench(input reg clk, output reg reset, output reg [7:0] dut_inp, out
     // Section 3: Apply Reset
     task apply_reset();
         $display("[TB Reset] Applying reset to DUT...");
-        reset <= 1;
+        router_if.reset <= 1;
         repeat (2) @(posedge clk);
-        reset <= 0;
+        router_if.reset <= 0;
         $display("[TB Reset] Reset completed.");
     endtask
 
@@ -47,15 +44,15 @@ program testbench(input reg clk, output reg reset, output reg [7:0] dut_inp, out
 
     // Drive Data into DUT
     task drive(const ref bit [7:0] inp_stream[$]);
-        wait (busy == 0);
+        wait (router_if.busy == 0);
         @(posedge clk);
         $display("[TB Drive] Driving stream into DUT at time=%0t", $time);
-        inp_valid <= 1;
+        router_if.inp_valid <= 1;
         foreach (inp_stream[i]) begin
-            dut_inp <= inp_stream[i];
+            router_if.dut_inp <= inp_stream[i];
             @(posedge clk);
         end
-        inp_valid <= 0;
+        router_if.inp_valid <= 0;
         $display("[TB Drive] Stream driving completed at time=%0t", $time);
     endtask
 
@@ -93,7 +90,7 @@ program testbench(input reg clk, output reg reset, output reg [7:0] dut_inp, out
         pack(inp_stream, stimulus_pkt);
         drive(inp_stream);
         repeat(5) @(posedge clk);
-        wait (busy == 0);
+        wait (router_if.busy == 0);
         repeat (10) @(posedge clk);
         result = compare_streams(inp_stream, outp_stream);
         if (result == 1) begin
@@ -111,13 +108,12 @@ program testbench(input reg clk, output reg reset, output reg [7:0] dut_inp, out
     // Section 5: Collect DUT Output
     initial begin
         forever begin
-            @(posedge outp_valid);
-            while (outp_valid) begin
+            @(posedge router_if.outp_valid);
+            while (router_if.outp_valid) begin
                 @(posedge clk);
-                if (dut_outp !== 'z) outp_stream.push_back(dut_outp);
+                if (router_if.dut_outp !== 'z) outp_stream.push_back(router_if.dut_outp);
             end
             unpack(outp_stream, dut_pkt);
         end
     end
-
 endprogram
