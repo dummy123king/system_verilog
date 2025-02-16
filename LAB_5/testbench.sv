@@ -42,6 +42,7 @@ program testbench(input reg clk, output reg reset, output reg [7:0] dut_inp, out
         temp_stream = {>>8{ pkt.sa, pkt.da, pkt.len[31:24], pkt.len[23:16], pkt.len[15:8], pkt.len[7:0], pkt.crc[31:24], pkt.crc[23:16], pkt.crc[15:8], pkt.crc[7:0] }};
         foreach (pkt.payload[i]) temp_stream.push_back(pkt.payload[i]);
         q_imp = temp_stream;
+      	$display("inp_stream = %0p", q_imp);
         $display("[TB Pack] Stream packed with %0d bytes", q_imp.size());
     endfunction
 
@@ -61,6 +62,7 @@ program testbench(input reg clk, output reg reset, output reg [7:0] dut_inp, out
 
     // Unpack Data
     function automatic void unpack(ref bit [7:0] q[$], output packet pkt);
+      $display("outp_stream = %0p", q);
         pkt.sa = q[0];
         pkt.da = q[1];
         pkt.len = {q[2], q[3], q[4], q[5]};
@@ -114,8 +116,10 @@ program testbench(input reg clk, output reg reset, output reg [7:0] dut_inp, out
             @(posedge outp_valid);
             while (outp_valid) begin
                 @(posedge clk);
-                if (dut_outp !== 'z) outp_stream.push_back(dut_outp);
+                if (dut_outp !== 'z)
+                  outp_stream.push_back(dut_outp);
             end
+          	
             unpack(outp_stream, dut_pkt);
         end
     end

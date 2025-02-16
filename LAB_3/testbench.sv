@@ -119,6 +119,25 @@ function void print(input packet pkt);
         $display("[TB Packet] Payload[%0d] = %0h", k, pkt.payload[k]);
 endfunction
 
+// Function to compare inp_stream and outp_stream
+function bit compare_streams(ref bit [7:0] inp_stream[$], ref bit [7:0] outp_stream[$]);
+    if (inp_stream.size() != outp_stream.size()) begin
+        $display("[TB Compare] Test Failed: Input and output streams have different sizes.");
+        $display("[TB Compare] Input stream size: %0d, Output stream size: %0d", inp_stream.size(), outp_stream.size());
+        $display("[TB Compare] Test Failed: Input and output streams Dosen't match.");
+    end
+
+    for (int i = 0; i < inp_stream.size(); i++) begin
+        if (inp_stream[i] !== outp_stream[i]) begin
+            $display("[TB Compare] Test Failed: Mismatch at byte %0d. Input: %0h, Output: %0h", i, inp_stream[i], outp_stream[i]);
+            return 0; // Return 0 for failure
+        end
+    end
+
+    $display("[TB Compare] Test Passed: Input and output streams match.");
+
+endfunction
+
 // Section 6: Verification Flow
 initial begin
     apply_reset(); // Apply reset
@@ -129,6 +148,7 @@ initial begin
     repeat(5) @(posedge clk); // Wait for some clock cycles
     wait (busy == 0); // Wait for DUT to finish processing
     repeat (10) @(posedge clk); // Additional wait for observation
+    compare_streams(inp_stream, outp_stream);
     $finish; // End simulation
 end
 
@@ -152,7 +172,6 @@ initial begin
         end
         $display("[TB Output] End of packet detected at time=%0t", $time);
         unpack(outp_stream, dut_pkt); // Unpack the collected output
-        outp_stream.delete(); // Clear the output stream for the next packet
     end
 end
 

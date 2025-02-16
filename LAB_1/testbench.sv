@@ -86,6 +86,7 @@ router_dut dut_inst (
 		dut_inp <= pkt.crc[15:8];
 		@(posedge clk);
 		dut_inp <= pkt.crc[7:0];
+		// Send data to DUT
 		foreach (pkt.payload[i]) begin
 			@(posedge clk);
 			dut_inp <= pkt.payload[i];

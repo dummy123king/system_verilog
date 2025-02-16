@@ -52,8 +52,8 @@ always @(posedge sop) begin
 	while(1) begin
 		@(posedge clk);
 		if(inp_valid == 0)  begin
-			// len_recv = {inp_pkt[5], inp_pkt[4], inp_pkt[3], inp_pkt[2]}; // /// Not working due to Endianess issue
-			len_recv = {inp_pkt[2], inp_pkt[3], inp_pkt[4], inp_pkt[5]}; //Working 
+			len_recv = {inp_pkt[5], inp_pkt[4], inp_pkt[3], inp_pkt[2]}; // /// Not working due to Endianess issue
+			// len_recv = {inp_pkt[2], inp_pkt[3], inp_pkt[4], inp_pkt[5]}; //Working 
 			$display("---------------------->>> inp_pkt[5] = %0d", inp_pkt[5]);
 			$display("---------------------->>> inp_pkt[4] = %0d", inp_pkt[4]);
 			$display("---------------------->>> inp_pkt[3] = %0d", inp_pkt[3]);
@@ -63,7 +63,8 @@ always @(posedge sop) begin
 				total_inp_pkt_count++;
 				if($test$plusargs("dut_debug"))
 					$display("[DUT Input] Packet %0d collected size = %0d, time = %0t", total_inp_pkt_count, inp_pkt.size(), $time);
-			end else begin
+			end
+			else begin
 				total_inp_pkt_count++;
 				pkt_corrupt_dropped_count++;
 				if($test$plusargs("dut_debug"))
