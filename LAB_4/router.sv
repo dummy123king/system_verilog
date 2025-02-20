@@ -1,4 +1,13 @@
-module router_dut (input clk, input reset, input [7:0] dut_inp, input inp_valid, output reg [7:0] dut_outp, output reg outp_valid, output reg busy, output reg [3:0] error);
+module router_dut (
+    input clk,
+    input reset,
+    input [7:0] dut_inp,
+    input inp_valid,
+    output reg [7:0] dut_outp,
+    output reg outp_valid,
+    output reg busy,
+    output reg [3:0] error
+);
 
 logic [7:0] inp_pkt[$];
 bit done, sop;
@@ -39,7 +48,7 @@ always @(posedge sop) begin
     while (1) begin
         @(posedge clk);
         if (inp_valid == 0) begin
-            len_recv = {inp_pkt[2], inp_pkt[3], inp_pkt[4], inp_pkt[5]}; // Working
+          len_recv = {inp_pkt[5], inp_pkt[4], inp_pkt[3], inp_pkt[2]}; // Working
             if (inp_pkt.size() == len_recv) begin
                 total_inp_pkt_count++;
                 if ($test$plusargs("dut_debug"))
@@ -126,7 +135,7 @@ function automatic bit calc_crc(const ref logic [7:0] pkt[$]);
     bit [31:0] crc, new_crc;
     bit [7:0] payload[$];
 
-    crc = {pkt[6], pkt[7], pkt[8], pkt[9]};
+  crc = {pkt[9], pkt[8], pkt[7], pkt[6]};
     for (int i = 10; i < pkt.size(); i++) begin
         payload.push_back(pkt[i]);
     end

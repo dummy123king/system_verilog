@@ -34,7 +34,6 @@ typedef struct {
     logic [7:0] payload[]; // Dynamic array for payload
 } packet;
 
-
 bit [7:0] inp_stream[$]; // Queue to hold the packed stream
 
 // Section 5: Methods (functions/tasks) definitions related to Verification Environment
@@ -59,30 +58,11 @@ function automatic void generate_stimulus(ref packet pkt);
 endfunction
 
 // Function to pack the stimulus into a stream using streaming operator
-function automatic void pack(ref bit [7:0] q_imp[$], packet pkt);
-    bit [7:0] temp_stream[$];
-    // Pack sa, da, len, crc with explicit bit-widths
-    temp_stream = {>>8{
-        pkt.sa,         // 8 bits
-        pkt.da,         // 8 bits
-        pkt.len[31:24], // 8 bits (MSB of len)
-        pkt.len[23:16], // 8 bits
-        pkt.len[15:8],  // 8 bits
-        pkt.len[7:0],   // 8 bits (LSB of len)
-        pkt.crc[31:24], // 8 bits (MSB of crc)
-        pkt.crc[23:16], // 8 bits
-        pkt.crc[15:8],  // 8 bits
-        pkt.crc[7:0]    // 8 bits (LSB of crc)
-    }};
-   
-    // Append payload to the stream
-    foreach (pkt.payload[i])
-        temp_stream.push_back(pkt.payload[i]);
-
-    // Assign the packed stream to the output queue
-    q_imp = temp_stream;
-    $display("[TB Pack] Stream packed with %0d bytes", q_imp.size());
-    $display("[TB Pack] Stream packed with %p", q_imp);
+function automatic void pack(ref bit [7:0] q_inp[$], input packet pkt);
+  // Pack sa, da, len, crc with explicit bit-widths
+  q_inp = {<< 8{pkt.payload, pkt.crc, pkt.len, pkt.da, pkt.sa}};
+  $display("[TB Pack] Stream packed with %0d bytes", q_inp.size());
+  $display("[TB Pack] Stream packed with %p", q_inp);
 endfunction
 
 // Task to drive the stimulus into DUT

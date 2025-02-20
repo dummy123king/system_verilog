@@ -36,8 +36,8 @@ typedef struct {
 
 bit [7:0] inp_stream[$]; // Queue to hold the packed input stream
 bit [7:0] outp_stream[$]; // Queue to hold the packed output stream
-packet stimulus_pkt, dut_pkt; // Packets for stimulus and DUT output
-bit result; // Declare the result variable here
+bit [31:0] pkt_count = 0;
+packet stimulus_pkt, q_inp[$], q_outp[$], dut_pkt; // Packets for stimulus and DUT output
 
 // Section 5: Methods (functions/tasks) definitions related to Verification Environment
 
@@ -49,11 +49,18 @@ task apply_reset();
     $display("[TB Reset] Reset completed.");
 endtask
 
+// Function to print packet details
+function void print(input packet pkt);
+    $display("[TB Packet] Sa = %0h Da = %0h Len = %0h Crc = %0h", pkt.sa, pkt.da, pkt.len, pkt.crc);
+    foreach (pkt.payload[k])
+        $display("[TB Packet] Payload[%0d] = %0h", k, pkt.payload[k]);
+endfunction
+
 // Function to generate random stimulus
 function automatic void generate_stimulus(ref packet pkt);
-    pkt.sa = 4; // Random source address
-    pkt.da = 8; // Random destination address
-    pkt.payload = new[$urandom_range(10, 20)]; // Random payload size
+    pkt.sa = $urandom_range(1, 8); // Random source address
+    pkt.da = $urandom_range(1, 8); // Random destination address
+    pkt.payload = new[$urandom_range(2, 1990)]; // Random payload size
     foreach (pkt.payload[i]) pkt.payload[i] = $urandom; // Fill payload with random values
     pkt.len = pkt.payload.size() + 4 + 4 + 1 + 1; // Total packet length
     pkt.crc = pkt.payload.sum(); // CRC is sum of payload bytes
@@ -61,30 +68,19 @@ function automatic void generate_stimulus(ref packet pkt);
 endfunction
 
 // Function to pack the stimulus into a stream using streaming operator
-function automatic void pack(ref bit [7:0] q_imp[$], packet pkt);
-    bit [7:0] temp_stream[$];
-    // Pack sa, da, len, crc with explicit bit-widths
-    temp_stream = {>>8{
-        pkt.sa,         // 8 bits
-        pkt.da,         // 8 bits
-        pkt.len[31:24], // 8 bits (MSB of len)
-        pkt.len[23:16], // 8 bits
-        pkt.len[15:8],  // 8 bits
-        pkt.len[7:0],   // 8 bits (LSB of len)
-        pkt.crc[31:24], // 8 bits (MSB of crc)
-        pkt.crc[23:16], // 8 bits
-        pkt.crc[15:8],  // 8 bits
-        pkt.crc[7:0]    // 8 bits (LSB of crc)
-    }};
-    // Append payload to the stream
-    foreach (pkt.payload[i])
-        temp_stream.push_back(pkt.payload[i]);
-
-    // Assign the packed stream to the output queue
-    q_imp = temp_stream;
-    $display("[TB Pack] Stream packed with %0d bytes", q_imp.size());
+function automatic void pack(ref bit [7:0] q_inp[$], input packet pkt);
+  // Pack sa, da, len, crc with explicit bit-widths
+  q_inp = {<< 8{pkt.payload, pkt.crc, pkt.len, pkt.da, pkt.sa}};
+  $display("[TB Pack] Stream packed with %0d bytes", q_inp.size());
+  $display("[TB Pack] Stream packed with %p", q_inp);
 endfunction
 
+// Function to unpack the collected output stream into a packet
+function automatic void unpack(ref bit [7:0] stream_out[$], output packet pkt);
+  	{<< 8 {pkt.payload, pkt.crc, pkt.len, pkt.da, pkt.sa}} = stream_out;
+    $display("[TB Unpack] Packet unpacked: sa=%0h, da=%0h, len=%0d, crc=%0d", pkt.sa, pkt.da, pkt.len, pkt.crc);
+  	$display("[TB Unpack] Packet unpacked: %0p", pkt.payload);
+endfunction
 // Task to drive the stimulus into DUT
 task drive(const ref bit [7:0] inp_stream[$]);
     wait (busy == 0); // Wait for DUT to be ready
@@ -100,62 +96,67 @@ task drive(const ref bit [7:0] inp_stream[$]);
     $display("[TB Drive] Stream driving completed at time=%0t", $time);
 endtask
 
-// Function to unpack the collected output stream into a packet
-function automatic void unpack(ref bit [7:0] q[$], output packet pkt);
-    pkt.sa = q[0]; // Source address
-    pkt.da = q[1]; // Destination address
-    pkt.len = {q[2], q[3], q[4], q[5]}; // Packet length
-    pkt.crc = {q[6], q[7], q[8], q[9]}; // CRC
-    pkt.payload = new[pkt.len - 10]; // Allocate payload array
-    for (int i = 10; i < q.size(); i++) begin
-        pkt.payload[i - 10] = q[i]; // Fill payload
-    end
-    $display("[TB Unpack] Packet unpacked: sa=%0h, da=%0h, len=%0d, crc=%0d", pkt.sa, pkt.da, pkt.len, pkt.crc);
+// Function to compare input packet and dut_pkt
+function bit compare(packet ref_pkt, packet dut_pkt);
+    if(ref_pkt.sa != dut_pkt.sa)    return 0;
+    if(ref_pkt.da != dut_pkt.da)   return 0;
+    if(ref_pkt.len != dut_pkt.len) return 0;
+    if(ref_pkt.crc != dut_pkt.crc) return 0;
+    if(ref_pkt.payload != dut_pkt.payload) return 0;
+    return 1; // Return 1 for success
 endfunction
 
-// Function to compare inp_stream and outp_stream
-function bit compare_streams(ref bit [7:0] inp_stream[$], ref bit [7:0] outp_stream[$]);
-    if (inp_stream.size() != outp_stream.size()) begin
-        $display("[TB Compare] Test Failed: Input and output streams have different sizes.");
-        $display("[TB Compare] Input stream size: %0d, Output stream size: %0d", inp_stream.size(), outp_stream.size());
-        return 0; // Return 0 for failure
+
+function void result();
+    bit[31:0] matched, mis_matched;
+    if(q_inp.size() == 0) begin
+        $display("[TB Error] There are no Input packets in q_inp");
+        $finish;
+    end
+    
+    if(q_outp.size() == 0) begin
+        $display("[TB Error] There are no Ouput packets in q_outp");
+        $finish;
     end
 
-    for (int i = 0; i < inp_stream.size(); i++) begin
-        if (inp_stream[i] !== outp_stream[i]) begin
-            $display("[TB Compare] Test Failed: Mismatch at byte %0d. Input: %0h, Output: %0h", i, inp_stream[i], outp_stream[i]);
-            return 0; // Return 0 for failure
+    foreach(q_inp[i]) begin
+        if(compare(q_inp[i], q_outp[i]))
+            matched++;
+        else begin
+            mis_matched++;
+            $display("[Error] Packet %0d MisMatched\n", i);
         end
     end
-
-    $display("[TB Compare] Test Passed: Input and output streams match.");
-    return 1; // Return 1 for success
+    
+    if(mis_matched == 0 && matched == pkt_count) begin
+        $display("\n\n******************************************************");
+        $display("[INFO]****************** TEST PASSED *****************");
+        $display("[INFO] Matched = %0d MisMatched=%0d", matched, mis_matched);
+        $display("******************************************************");
+    end
+    else begin
+        $display("\n\n******************************************************");
+        $display("[INFO]*************** TEST FAILED ********************");
+        $display("[INFO] Matched = %0d MisMatched=%0d", matched, mis_matched);
+        $display("******************************************************");
+    end
 endfunction
 
 // Section 6: Verification Flow
 initial begin
-    apply_reset(); // Apply reset
-    generate_stimulus(stimulus_pkt); // Generate a random packet
-//     print(stimulus_pkt); // Print packet details
-    pack(inp_stream, stimulus_pkt); // Pack the stimulus into a stream
-    drive(inp_stream); // Drive the stream into DUT
-    repeat(5) @(posedge clk); // Wait for some clock cycles
-    wait (busy == 0); // Wait for DUT to finish processing
-    repeat (10) @(posedge clk); // Additional wait for observation
-
-    // Compare input and output streams
-    result = compare_streams(inp_stream, outp_stream); // Use the result variable
-    if (result == 1) begin
-        $display("******************************************************");
-        $display("****************** TEST PASSED ***********************");
-        $display("******************************************************");
+    for (int i = 0; i < 100; i++) begin
+        apply_reset(); // Apply reset
+        generate_stimulus(stimulus_pkt); // Generate a random packet
+        pack(inp_stream, stimulus_pkt); // Pack the stimulus into a stream
+        q_inp.push_back(stimulus_pkt);
+        drive(inp_stream); // Drive the stream into DUT
+        repeat(5) @(posedge clk); // Wait for some clock cycles
+        wait (busy == 0); // Wait for DUT to finish processing
+        repeat (10) @(posedge clk); // Additional wait for observation
+        inp_stream.delete();
+        pkt_count++;
     end
-    else begin
-        $display("******************************************************");
-        $display("****************** TEST FAILED ***********************");
-        $display("******************************************************");
-    end
-
+    result();
     $finish; // End simulation
 end
 
@@ -174,12 +175,13 @@ initial begin
             @(posedge clk); // Wait for the next clock edge
             if (dut_outp !== 'z) begin // Only collect valid data
                 outp_stream.push_back(dut_outp);
-                $display("[TB Output] Collected byte: %0h at time=%0t", dut_outp, $time);
+                // $display("[TB Output] Collected byte: %0h at time=%0t", dut_outp, $time);
             end
         end
         $display("[TB Output] End of packet detected at time=%0t", $time);
         unpack(outp_stream, dut_pkt); // Unpack the collected output
-//         outp_stream.delete(); // Clear the output stream for the next packet
+        q_outp.push_back(dut_pkt);
+        outp_stream.delete(); // Clear the output stream for the next packet
     end
 end
 

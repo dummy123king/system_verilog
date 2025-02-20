@@ -60,28 +60,18 @@ function automatic void generate_stimulus(ref packet pkt);
 endfunction
 
 // Function to pack the stimulus into a stream using streaming operator
-function automatic void pack(ref bit [7:0] q_imp[$], packet pkt);
-    bit [7:0] temp_stream[$];
-    // Pack sa, da, len, crc with explicit bit-widths
-    temp_stream = {>>8{
-        pkt.sa,         // 8 bits
-        pkt.da,         // 8 bits
-        pkt.len[31:24], // 8 bits (MSB of len)
-        pkt.len[23:16], // 8 bits
-        pkt.len[15:8],  // 8 bits
-        pkt.len[7:0],   // 8 bits (LSB of len)
-        pkt.crc[31:24], // 8 bits (MSB of crc)
-        pkt.crc[23:16], // 8 bits
-        pkt.crc[15:8],  // 8 bits
-        pkt.crc[7:0]    // 8 bits (LSB of crc)
-    }};
-    // Append payload to the stream
-    foreach (pkt.payload[i])
-        temp_stream.push_back(pkt.payload[i]);
+function automatic void pack(ref bit [7:0] q_inp[$], input packet pkt);
+  // Pack sa, da, len, crc with explicit bit-widths
+  q_inp = {<< 8{pkt.payload, pkt.crc, pkt.len, pkt.da, pkt.sa}};
+  $display("[TB Pack] Stream packed with %0d bytes", q_inp.size());
+  $display("[TB Pack] Stream packed with %p", q_inp);
+endfunction
 
-    // Assign the packed stream to the output queue
-    q_imp = temp_stream;
-    $display("[TB Pack] Stream packed with %0d bytes", q_imp.size());
+// Function to unpack the collected output stream into a packet
+function automatic void unpack(ref bit [7:0] stream_out[$], output packet pkt);
+  	{<< 8 {pkt.payload, pkt.crc, pkt.len, pkt.da, pkt.sa}} = stream_out;
+    $display("[TB Unpack] Packet unpacked: sa=%0h, da=%0h, len=%0d, crc=%0d", pkt.sa, pkt.da, pkt.len, pkt.crc);
+  	$display("[TB Unpack] Packet unpacked: %0p", pkt.payload);
 endfunction
 
 // Task to drive the stimulus into DUT
@@ -99,18 +89,6 @@ task drive(const ref bit [7:0] inp_stream[$]);
     $display("[TB Drive] Stream driving completed at time=%0t", $time);
 endtask
 
-// Function to unpack the collected output stream into a packet
-function automatic void unpack(ref bit [7:0] q[$], output packet pkt);
-    pkt.sa = q[0]; // Source address
-    pkt.da = q[1]; // Destination address
-    pkt.len = {q[2], q[3], q[4], q[5]}; // Packet length
-    pkt.crc = {q[6], q[7], q[8], q[9]}; // CRC
-    pkt.payload = new[pkt.len - 10]; // Allocate payload array
-    for (int i = 10; i < q.size(); i++) begin
-        pkt.payload[i - 10] = q[i]; // Fill payload
-    end
-    $display("[TB Unpack] Packet unpacked: sa=%0h, da=%0h, len=%0d, crc=%0d", pkt.sa, pkt.da, pkt.len, pkt.crc);
-endfunction
 
 // Function to print packet details
 function void print(input packet pkt);

@@ -71,21 +71,22 @@ router_dut dut_inst (
 		@(posedge clk);
 		dut_inp <= pkt.da;
 		@(posedge clk);
-		dut_inp <= pkt.len[31:24];
-		@(posedge clk);
-		dut_inp <= pkt.len[23:16];
+		dut_inp <= pkt.len[7:0];
 		@(posedge clk);
 		dut_inp <= pkt.len[15:8];
 		@(posedge clk);
-		dut_inp <= pkt.len[7:0];
+		dut_inp <= pkt.len[23:16];
 		@(posedge clk);
-		dut_inp <= pkt.crc[31:24];
-		@(posedge clk);
-		dut_inp <= pkt.crc[23:16];
-		@(posedge clk);
-		dut_inp <= pkt.crc[15:8];
+		dut_inp <= pkt.len[31:24];
 		@(posedge clk);
 		dut_inp <= pkt.crc[7:0];
+		@(posedge clk);
+		dut_inp <= pkt.crc[15:8];
+		@(posedge clk);		
+		dut_inp <= pkt.crc[23:16];
+		@(posedge clk);
+		dut_inp <= pkt.crc[31:24];
+		
 		// Send data to DUT
 		foreach (pkt.payload[i]) begin
 			@(posedge clk);
