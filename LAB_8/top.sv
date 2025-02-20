@@ -55,4 +55,21 @@ module top;
         $dumpfile("dump.vcd");
         $dumpvars(0, top);
     end
+
+
+    // Section 9: Error handling
+    always @(intf.error) begin
+        case (intf.error)
+            1: $display("[TB Error] Protocol Violation. Packet driven while Router is busy");
+            2: $display("[TB Error] Packet Dropped due to CRC mismatch");
+            3: $display("[TB Error] Packet Dropped due to Minimum packet size mismatch");
+            4: $display("[TB Error] Packet Dropped due to Maximum packet size mismatch");
+            5: begin
+                $display("[TB Error] Packet Corrupted. Packet dropped due to packet length mismatch");
+                $display("[TB Error] Step 1: Check value of len field of packet driven from TB");
+                $display("[TB Error] Step 2: Check total number of bytes received in DUT in the waveform (Check dut_inp)");
+                $display("[TB Error] Check value of Step 1 matching with Step 2 or not");
+            end
+        endcase
+    end
 endmodule
