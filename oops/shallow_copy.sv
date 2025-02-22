@@ -1,3 +1,9 @@
+//-------------------------------------Shallow copy --------------------------------------
+// In SystemVerilog, a shallow copy creates a new object and copies all fields from the original object to the new one.
+// However, if the original object contains references to other objects or dynamic data structures (e.g., dynamic arrays, queues, or class handles)
+// the shallow copy will duplicate the references, not the underlying data.
+// This means the copied object and the original will share the same referenced data. 
+
 class B;
     int x;
 endclass
@@ -20,10 +26,7 @@ program test;
 
         // Shallow copy: Create a new object a2 and copy properties from a1
         a2 = new a1; // Shallow copy of a1 to a2
-        a2.m = a1.m; // Copy m from a1 to a2
-        a2.k = a1.k; // Copy k from a1 to a2
-        a2.nestedObj = a1.nestedObj; // Copy reference to nested object
-
+        
         // Modify properties of a1 and a2
         a1.m = 55; // Modify a1.m (does not affect a2.m)
         a2.m = 66; // Modify a2.m (does not affect a1.m)
