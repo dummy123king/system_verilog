@@ -3,6 +3,10 @@
 // However, if the original object contains references to other objects or dynamic data structures (e.g., dynamic arrays, queues, or class handles)
 // the shallow copy will duplicate the references, not the underlying data.
 // This means the copied object and the original will share the same referenced data. 
+// When to Use Shallow Copy?
+//  When you need a new object but want to share referenced data (e.g., for efficiency).
+//  When modifying the copied object’s non-reference fields without affecting the original.
+
 
 class B;
     int x;
