@@ -1,3 +1,4 @@
+`include "top.sv"
 // Section 1: Declaration of input/output ports
 program testbench(input reg clk, router_interface router_if);
     // Section 2: TB Variables
