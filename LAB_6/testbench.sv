@@ -1,3 +1,5 @@
+`include "top.sv"
+
 // Section 1: Declaration of input/output ports
 program testbench(input reg clk, output reg reset, output reg [7:0] dut_inp, output reg inp_valid, input [7:0] dut_outp, input outp_valid, input busy, input [3:0] error);
 
@@ -35,7 +37,7 @@ program testbench(input reg clk, output reg reset, output reg [7:0] dut_inp, out
     function automatic void generate_stimulus(ref packet pkt);
         pkt.sa = $urandom_range(1, 8); // Random source address
         pkt.da = $urandom_range(1, 8); // Random destination address
-        pkt.payload = new[$urandom_range(2, 10)]; // Random payload size
+        pkt.payload = new[$urandom_range(2, 1990)]; // Random payload size
         foreach (pkt.payload[i]) pkt.payload[i] = $urandom; // Fill payload with random values
         pkt.len = pkt.payload.size() + 4 + 4 + 1 + 1; // Total packet length
         pkt.crc = pkt.payload.sum(); // CRC is sum of payload bytes
@@ -118,7 +120,7 @@ program testbench(input reg clk, output reg reset, output reg [7:0] dut_inp, out
 
     // Section 6: Verification Flow
     initial begin
-        for (int i = 0; i < 1; i++) begin
+        for (int i = 0; i < 100; i++) begin
             apply_reset(); // Apply reset
             generate_stimulus(stimulus_pkt); // Generate a random packet
             pack(inp_stream, stimulus_pkt); // Pack the stimulus into a stream
@@ -138,6 +140,7 @@ program testbench(input reg clk, output reg reset, output reg [7:0] dut_inp, out
     initial begin
         forever begin
             @(posedge outp_valid); // Wait for start of packet
+            outp_stream.push_back(dut_outp);
             $display("[TB Output] Start of packet detected at time=%0t", $time);
             while (outp_valid) begin
                 @(posedge clk); // Wait for the next clock edge
