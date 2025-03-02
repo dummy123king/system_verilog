@@ -1,3 +1,4 @@
+//Section 7:Define interface with clk as input
 interface router_interface(input clk);
     logic reset;
     logic [7:0] dut_inp;
@@ -7,6 +8,7 @@ interface router_interface(input clk);
     logic busy;
     logic [3:0] error;
 
+    //Section 10 :Define the clocking block
     clocking cb @(posedge clk);
          output dut_inp; // Directions are w.r.t TB
          output inp_valid; //Drive signal from TB
@@ -22,7 +24,7 @@ interface router_interface(input clk);
     //     input outp_valid, dut_outp, busy, error  // Signals sampled by TB
     // );
     
-    modport tb_mod_port(clocking cb, output reset);
+    modport tb_modport(clocking cb, output reset);
 
     // Define modport for the DUT
     modport dut_modport (
@@ -39,10 +41,10 @@ module top;
     initial clk = 0;
     always #5 clk = ~clk; // 10ns clock period
 
-    // Section 4: Instantiate the interface
-    router_interface intf();
+    // Section 3: Instantiate the interface
+    router_interface intf(clk);
 
-    // Section 5: Instantiate the DUT and connect it to the interface
+    // Section 4: Instantiate the DUT and connect it to the interface
     router_dut dut_inst (
         .clk(clk),
         .reset(intf.reset),
@@ -54,13 +56,13 @@ module top;
         .error(intf.error)
     );
 
-    // Section 6: Instantiate the testbench and connect it to the interface
+    // Section 5: Instantiate the testbench and connect it to the interface
     testbench tb_inst (
         .clk(clk),
         .router_if(intf.tb_modport)  // Connect the modport for the testbench
     );
 
-    // Section 7: Dumping Waveform
+    // Section 6: Dumping Waveform
     initial begin
         $dumpfile("dump.vcd");
         $dumpvars(0, top);

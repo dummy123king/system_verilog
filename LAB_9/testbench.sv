@@ -1,3 +1,4 @@
+`include "top.sv"
 // Section 1: Declaration of input/output ports
 program testbench(input reg clk, router_interface router_if);
     // Section 2: TB Variables
@@ -133,23 +134,29 @@ program testbench(input reg clk, router_interface router_if);
         $finish; // End simulation
     end
 
-    // Section 8: Collect DUT output
-    initial begin
-        forever begin
-            @(posedge router_if.outp_valid); // Wait for start of packet
-            $display("[TB Output] Start of packet detected at time=%0t", $time);
-            while (router_if.outp_valid) begin
-                @(router_if.cb); // Wait for the next clock edge
-                if (router_if.dut_outp !== 'z) begin // Only collect valid data
-                    outp_stream.push_back(router_if.dut_outp);
-                    // $display("[TB Output] Collected byte: %0h at time=%0t", dut_outp, $time);
-                end
+  // Section 8: Collect DUT output
+// Section 8: Collect DUT output
+initial begin
+    forever begin
+        @(router_if.cb.outp_valid); // Wait for start of packet
+        $display("[TB Output] Start of packet detected at time=%0t", $time);
+      	outp_stream.push_back(router_if.cb.dut_outp);
+        while (router_if.cb.outp_valid) begin
+            @(router_if.cb); // Wait for the next clock edge
+            if (router_if.cb.dut_outp !== 'z) begin // Only collect valid data
+                outp_stream.push_back(router_if.cb.dut_outp);
+                $display("[TB Output] Collected byte: %0h at time=%0t", router_if.cb.dut_outp, $time);
             end
-            $display("[TB Output] End of packet detected at time=%0t", $time);
-            unpack(outp_stream, dut_pkt); // Unpack the collected output
-            q_outp.push_back(dut_pkt);
-            outp_stream.delete(); // Clear the output stream for the next packet
         end
+        $display("[TB Output] End of packet detected at time=%0t", $time);
+        $display("[TB Output] Received from DUT =%0p", outp_stream);
+
+        // Unable to collect the first byte[sa]
+        // Check if outp_stream is not empty before unpacking
+//             unpack(outp_stream, dut_pkt); // Unpack the collected output
+//             q_outp.push_back(dut_pkt); // Push the unpacked packet into q_outp
+//             outp_stream.delete(); // Clear the output stream for the next packet
     end
+end
 
 endprogram
