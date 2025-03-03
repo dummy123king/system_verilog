@@ -35,7 +35,7 @@ program testbench(input reg clk, router_interface router_if);
     function automatic void generate_stimulus(ref packet pkt);
         pkt.sa = $urandom_range(1, 8); // Random source address
         pkt.da = $urandom_range(1, 8); // Random destination address
-        pkt.payload = new[$urandom_range(2, 10)]; // Random payload size
+      	pkt.payload = new[$urandom_range(2, 1990)]; // Random payload size
         foreach (pkt.payload[i]) pkt.payload[i] = $urandom; // Fill payload with random values
         pkt.len = pkt.payload.size() + 4 + 4 + 1 + 1; // Total packet length
         pkt.crc = pkt.payload.sum(); // CRC is sum of payload bytes
@@ -118,7 +118,7 @@ program testbench(input reg clk, router_interface router_if);
 
     // Section 6: Verification Flow
     initial begin
-        for (int i = 0; i < 1; i++) begin
+      for (int i = 0; i < 100; i++) begin
             apply_reset(); // Apply reset
             generate_stimulus(stimulus_pkt); // Generate a random packet
             pack(inp_stream, stimulus_pkt); // Pack the stimulus into a stream
@@ -138,6 +138,7 @@ program testbench(input reg clk, router_interface router_if);
 // Section 8: Collect DUT output
 initial begin
     forever begin
+      	outp_stream.delete(); // Clear the output stream for the next packet
         @(router_if.cb.outp_valid); // Wait for start of packet
         $display("[TB Output] Start of packet detected at time=%0t", $time);
       	outp_stream.push_back(router_if.cb.dut_outp);
@@ -145,17 +146,20 @@ initial begin
             @(router_if.cb); // Wait for the next clock edge
             if (router_if.cb.dut_outp !== 'z) begin // Only collect valid data
                 outp_stream.push_back(router_if.cb.dut_outp);
-                $display("[TB Output] Collected byte: %0h at time=%0t", router_if.cb.dut_outp, $time);
+//                 $display("[TB Output] Collected byte: %0h at time=%0t", router_if.cb.dut_outp, $time);
             end
         end
         $display("[TB Output] End of packet detected at time=%0t", $time);
         $display("[TB Output] Received from DUT =%0p", outp_stream);
 
-        // Unable to collect the first byte[sa]
         // Check if outp_stream is not empty before unpacking
-//             unpack(outp_stream, dut_pkt); // Unpack the collected output
-//             q_outp.push_back(dut_pkt); // Push the unpacked packet into q_outp
-//             outp_stream.delete(); // Clear the output stream for the next packet
+        if (outp_stream.size() > 1) begin
+            unpack(outp_stream, dut_pkt); // Unpack the collected output
+            q_outp.push_back(dut_pkt); // Push the unpacked packet into q_outp
+			outp_stream.delete(); // Clear the output stream for the next packet            
+        end else begin
+            $display("[TB Error] outp_stream is empty. Cannot unpack.");
+        end
     end
 end
 
